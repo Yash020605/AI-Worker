@@ -40,6 +40,7 @@ VENDORS: dict[str, dict] = {
     "v002": {"id": "v002", "name": "TechVision Corp", "email": "accounts@techvision.io", "phone": "+91-9123456780"},
     "v003": {"id": "v003", "name": "Global Logistics Inc", "email": "finance@globallogistics.com", "phone": "+1-555-0192"},
     "v004": {"id": "v004", "name": "Nexus Consulting", "email": "invoices@nexusconsult.in", "phone": "+91-9900112233"},
+    "v005": {"id": "v005", "name": "LinkedIn Company", "email": "billing@linkedin.com", "phone": "+1-650-687-3600"},
 }
 
 now = datetime.utcnow()
@@ -119,6 +120,41 @@ INVOICES: dict[str, dict] = {
         ],
         "created_at": (now - timedelta(days=42)).isoformat(),
         "paid_at": (now - timedelta(days=10)).isoformat(),
+    },
+    # ── LinkedIn Company invoices (two — agent must pick the latest) ──
+    "inv005": {
+        "id": "inv005",
+        "vendor_id": "v005",
+        "company": "LinkedIn Company",
+        "invoice_number": "LI-2024-0031",
+        "amount": 85000.00,
+        "currency": "INR",
+        "due_date": (now - timedelta(days=20)).strftime("%Y-%m-%d"),
+        "issue_date": (now - timedelta(days=50)).strftime("%Y-%m-%d"),
+        "status": "paid",
+        "description": "LinkedIn Recruiter Lite — Q3 seats (5 users)",
+        "line_items": [
+            {"item": "LinkedIn Recruiter Lite (5 seats x 3 months)", "qty": 5, "rate": 5667, "total": 85005},
+        ],
+        "created_at": (now - timedelta(days=50)).isoformat(),
+        "paid_at": (now - timedelta(days=18)).isoformat(),
+    },
+    "inv006": {
+        "id": "inv006",
+        "vendor_id": "v005",
+        "company": "LinkedIn Company",
+        "invoice_number": "LI-2024-0047",
+        "amount": 112500.00,
+        "currency": "INR",
+        "due_date": (now + timedelta(days=10)).strftime("%Y-%m-%d"),
+        "issue_date": (now - timedelta(days=10)).strftime("%Y-%m-%d"),
+        "status": "unpaid",
+        "description": "LinkedIn Recruiter Lite + Learning Hub — Q4 2024",
+        "line_items": [
+            {"item": "LinkedIn Recruiter Lite (5 seats x 3 months)", "qty": 5, "rate": 5667, "total": 85005},
+            {"item": "LinkedIn Learning Hub (team, 3 months)", "qty": 1, "rate": 27495, "total": 27495},
+        ],
+        "created_at": (now - timedelta(days=10)).isoformat(),
     },
 }
 
