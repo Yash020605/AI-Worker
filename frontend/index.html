@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Autonomous AI Worker</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #263348;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --blue: #38bdf8;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --purple: #a78bfa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.25rem; color: var(--blue); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-left: auto; box-shadow: 0 0 6px var(--green); }
+    .status-label { color: var(--muted); font-size: 0.8rem; }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── Cards ───────────────────────────────────────────── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .card h2 { font-size: 0.95rem; color: var(--blue); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    /* ── Task Input ──────────────────────────────────────── */
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 12px;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 100px;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+    textarea:focus { outline: none; border-color: var(--blue); }
+
+    .example-tasks { margin: 10px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .example-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.15s;
+    }
+    .example-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+    .submit-btn {
+      margin-top: 12px;
+      width: 100%;
+      background: var(--blue);
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .submit-btn:hover { opacity: 0.9; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Status Badge ─────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-running { background: #1d4ed8; color: #93c5fd; }
+    .badge-completed { background: #15803d; color: #bbf7d0; }
+    .badge-failed { background: #991b1b; color: #fca5a5; }
+    .badge-waiting { background: #92400e; color: #fde68a; }
+    .badge-pending { background: var(--surface2); color: var(--muted); }
+
+    /* ── Steps ────────────────────────────────────────────── */
+    .steps-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .step {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+    }
+    .step-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .step-icon { font-size: 1rem; }
+    .step-desc { color: var(--text); flex: 1; }
+    .step-output { color: var(--muted); font-family: monospace; margin-top: 4px; word-break: break-all; font-size: 0.78rem; }
+    .step-error { color: var(--red); font-size: 0.78rem; margin-top: 4px; }
+
+    /* ── Result ───────────────────────────────────────────── */
+    .result-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.87rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .result-box.success { border-left: 3px solid var(--green); }
+    .result-box.failed { border-left: 3px solid var(--red); }
+
+    /* ── Task History ─────────────────────────────────────── */
+    .history-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .history-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      font-size: 0.82rem;
+    }
+    .history-item:hover { border-color: var(--blue); }
+    .history-item.active { border-color: var(--blue); background: #1a3052; }
+    .history-task { color: var(--text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-meta { color: var(--muted); font-size: 0.75rem; display: flex; gap: 10px; }
+
+    /* ── Approval Panel ───────────────────────────────────── */
+    .approval-panel {
+      background: #1c1a0e;
+      border: 1px solid var(--yellow);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+    .approval-panel h3 { color: var(--yellow); font-size: 0.9rem; margin-bottom: 8px; }
+    .approval-detail { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; font-family: monospace; white-space: pre-wrap; }
+    .approval-actions { display: flex; gap: 8px; }
+    .btn-approve { background: var(--green); color: #052e16; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: 700; }
+    .btn-reject { background: var(--red); color: #450a0a; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-weight: 700; }
+
+    /* ── Memory Panel ─────────────────────────────────────── */
+    .memory-item { display: flex; gap: 8px; margin-bottom: 6px; font-size: 0.82rem; }
+    .memory-key { color: var(--blue); font-weight: 600; min-width: 120px; }
+    .memory-value { color: var(--muted); word-break: break-all; }
+
+    /* ── Live log ─────────────────────────────────────────── */
+    #live-log {
+      background: #050b14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      height: 120px;
+      overflow-y: auto;
+      line-height: 1.7;
+    }
+    .log-line { color: #4ade80; }
+    .log-error { color: var(--red); }
+
+    /* ── Spinner ─────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.5rem">🤖</span>
+  <h1>Autonomous AI Worker</h1>
+  <span style="color:var(--muted);font-size:0.8rem;margin-left:8px">v1.0</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <div class="status-dot" id="api-dot"></div>
+    <span class="status-label" id="api-status">Connecting…</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT COLUMN -->
+  <div>
+    <!-- Task Input -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>📝 New Task</h2>
+      <textarea id="task-input" placeholder="Describe what you want the agent to do…
+
+Example: Find the latest invoice from Acme Supplies Ltd, extract the amount and due date, enter it into the internal system, and tell me when it's done."></textarea>
+      <div class="example-tasks" id="examples"></div>
+      <button class="submit-btn" id="submit-btn" onclick="submitTask()">
+        Run Task →
+      </button>
+    </div>
+
+    <!-- Current Task Status -->
+    <div class="card" style="margin-bottom:20px" id="status-card" style="display:none">
+      <h2>⚡ Current Task</h2>
+      <div id="current-task-info">No task running</div>
+      <div id="approval-panel"></div>
+    </div>
+
+    <!-- Result -->
+    <div class="card" id="result-card" style="display:none">
+      <h2>✅ Result</h2>
+      <div class="result-box" id="result-box"></div>
+      <div style="margin-top:8px;font-size:0.8rem;color:var(--muted)" id="verification-info"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+    <!-- Steps -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>🔧 Agent Steps <span id="step-count" style="color:var(--muted);font-size:0.8rem"></span></h2>
+      <div class="steps-list" id="steps-list">
+        <div style="color:var(--muted);font-size:0.85rem">Steps will appear here once a task starts…</div>
+      </div>
+    </div>
+
+    <!-- Memory -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>🧠 Agent Memory</h2>
+      <div id="memory-panel" style="color:var(--muted);font-size:0.85rem">Nothing stored yet</div>
+    </div>
+
+    <!-- Live Log -->
+    <div class="card" style="margin-bottom:20px">
+      <h2>📡 Live Events</h2>
+      <div id="live-log"><span class="log-line">Waiting for events…</span></div>
+    </div>
+
+    <!-- Task History -->
+    <div class="card">
+      <h2>📋 Task History</h2>
+      <div class="history-list" id="history-list">
+        <div style="color:var(--muted);font-size:0.85rem">No tasks yet</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let currentTaskId = null;
+  let pollingInterval = null;
+  const taskHistory = [];
+
+  const EXAMPLE_TASKS = [
+    "Find the latest invoice from Acme Supplies Ltd and tell me the amount and due date",
+    "List all unpaid invoices and create a summary task for the finance team",
+    "Find the overdue invoice from Global Logistics Inc and record it in memory",
+    "Get all vendors and list their names and contact emails",
+    "Find the TechVision Corp invoice and check its status",
+  ];
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  window.onload = async () => {
+    renderExamples();
+    await checkApiHealth();
+    setInterval(checkApiHealth, 15000);
+  };
+
+  function renderExamples() {
+    const container = document.getElementById('examples');
+    EXAMPLE_TASKS.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'example-btn';
+      btn.textContent = t.substring(0, 50) + (t.length > 50 ? '…' : '');
+      btn.title = t;
+      btn.onclick = () => { document.getElementById('task-input').value = t; };
+      container.appendChild(btn);
+    });
+  }
+
+  async function checkApiHealth() {
+    try {
+      const res = await fetch(`${API}/health`);
+      const dot = document.getElementById('api-dot');
+      const label = document.getElementById('api-status');
+      if (res.ok) {
+        dot.style.background = '#4ade80';
+        dot.style.boxShadow = '0 0 6px #4ade80';
+        label.textContent = 'API Online';
+      } else {
+        dot.style.background = '#f87171';
+        label.textContent = 'API Error';
+      }
+    } catch {
+      document.getElementById('api-dot').style.background = '#f87171';
+      document.getElementById('api-status').textContent = 'API Offline';
+    }
+  }
+
+  // ── Submit Task ───────────────────────────────────────────────────────────
+
+  async function submitTask() {
+    const task = document.getElementById('task-input').value.trim();
+    if (!task) return;
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Running…';
+
+    log(`Submitting task: "${task.substring(0,60)}…"`);
+
+    try {
+      const res = await fetch(`${API}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task }),
+      });
+      const data = await res.json();
+      currentTaskId = data.task_id;
+
+      log(`Task accepted: ${currentTaskId}`);
+      addToHistory(currentTaskId, task);
+      startPolling(currentTaskId);
+      startSSE(currentTaskId);
+
+      document.getElementById('status-card').style.display = 'block';
+      document.getElementById('result-card').style.display = 'none';
+      document.getElementById('approval-panel').innerHTML = '';
+      document.getElementById('steps-list').innerHTML = '<div style="color:var(--muted);font-size:0.85rem">Agent starting…</div>';
+      document.getElementById('memory-panel').innerHTML = '<div style="color:var(--muted)">Waiting…</div>';
+
+      updateStatusCard({ task_id: currentTaskId, task, status: 'running' });
+    } catch (e) {
+      log(`Error: ${e.message}`, true);
+      btn.disabled = false;
+      btn.textContent = 'Run Task →';
+    }
+  }
+
+  // ── Polling ───────────────────────────────────────────────────────────────
+
+  function startPolling(taskId) {
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/tasks/${taskId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderTaskDetails(data);
+
+        if (['completed', 'failed', 'cancelled'].includes(data.status)) {
+          clearInterval(pollingInterval);
+          const btn = document.getElementById('submit-btn');
+          btn.disabled = false;
+          btn.textContent = 'Run Task →';
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 1500);
+  }
+
+  function startSSE(taskId) {
+    const es = new EventSource(`${API}/tasks/${taskId}/stream`);
+    es.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data);
+        if (event.type === 'done') { es.close(); return; }
+        log(`[${event.type}] ${JSON.stringify(event.data).substring(0,100)}`);
+      } catch {}
+    };
+    es.onerror = () => es.close();
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  function renderTaskDetails(data) {
+    updateStatusCard(data);
+    renderSteps(data.steps || []);
+    renderMemory(data.memory || {});
+
+    if (['completed', 'failed'].includes(data.status)) {
+      renderResult(data);
+    }
+
+    if (data.status === 'waiting_approval' && data.pending_approval) {
+      renderApproval(data.pending_approval, data.task_id);
+    }
+
+    // Update history
+    const item = document.querySelector(`[data-task-id="${data.task_id}"]`);
+    if (item) {
+      const badge = item.querySelector('.badge');
+      if (badge) { badge.className = `badge badge-${data.status}`; badge.textContent = data.status; }
+    }
+  }
+
+  function updateStatusCard(data) {
+    const info = document.getElementById('current-task-info');
+    const statusColors = { running: 'badge-running', completed: 'badge-completed', failed: 'badge-failed', waiting_approval: 'badge-waiting', pending: 'badge-pending' };
+    info.innerHTML = `
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:8px">Task ID: <code style="color:var(--blue)">${data.task_id}</code></div>
+      <div style="font-size:0.9rem;margin-bottom:8px">${data.task || ''}</div>
+      <span class="badge ${statusColors[data.status] || 'badge-pending'}">${data.status}</span>
+      ${data.iteration !== undefined ? `<span style="color:var(--muted);font-size:0.8rem;margin-left:8px">Iteration ${data.iteration}</span>` : ''}
+    `;
+  }
+
+  function renderSteps(steps) {
+    const list = document.getElementById('steps-list');
+    document.getElementById('step-count').textContent = steps.length ? `(${steps.length} steps)` : '';
+
+    if (!steps.length) return;
+
+    const icons = { success: '✅', failed: '❌', pending: '⏳', retried: '🔄', skipped: '⏭️' };
+    list.innerHTML = steps.slice().reverse().map(s => `
+      <div class="step">
+        <div class="step-header">
+          <span class="step-icon">${icons[s.status] || '●'}</span>
+          <span class="step-desc">${escHtml(s.description.substring(0,90))}</span>
+          ${s.duration_ms ? `<span style="color:var(--muted);font-size:0.75rem">${Math.round(s.duration_ms)}ms</span>` : ''}
+        </div>
+        ${s.output_data && s.output_data.output ? `<div class="step-output">${escHtml(String(s.output_data.output).substring(0,150))}</div>` : ''}
+        ${s.error ? `<div class="step-error">⚠ ${escHtml(s.error)}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function renderMemory(memory) {
+    const panel = document.getElementById('memory-panel');
+    if (!memory || !Object.keys(memory).length) {
+      panel.innerHTML = '<div style="color:var(--muted);font-size:0.85rem">Nothing stored yet</div>';
+      return;
+    }
+    panel.innerHTML = Object.entries(memory).map(([k, v]) => `
+      <div class="memory-item">
+        <span class="memory-key">${escHtml(k)}:</span>
+        <span class="memory-value">${escHtml(String(v).substring(0,100))}</span>
+      </div>
+    `).join('');
+  }
+
+  function renderResult(data) {
+    const card = document.getElementById('result-card');
+    const box = document.getElementById('result-box');
+    const info = document.getElementById('verification-info');
+    card.style.display = 'block';
+    box.className = `result-box ${data.status === 'completed' ? 'success' : 'failed'}`;
+    box.textContent = data.result || data.error || 'No result captured';
+    if (data.verification_passed !== null && data.verification_passed !== undefined) {
+      info.textContent = `Verification: ${data.verification_passed ? '✅ PASSED' : '❌ FAILED'} — ${(data.verification_notes || '').substring(0,100)}`;
+    }
+  }
+
+  function renderApproval(approval, taskId) {
+    const panel = document.getElementById('approval-panel');
+    panel.innerHTML = `
+      <div class="approval-panel">
+        <h3>⚠️ Agent Needs Approval</h3>
+        <div class="approval-detail">${escHtml(approval.description)}\n${JSON.stringify(approval.details, null, 2).substring(0, 200)}</div>
+        <div class="approval-actions">
+          <button class="btn-approve" onclick="sendApproval('${taskId}', '${approval.step_id}', 'approve')">✅ Approve</button>
+          <button class="btn-reject" onclick="sendApproval('${taskId}', '${approval.step_id}', 'reject')">❌ Reject</button>
+        </div>
+      </div>`;
+  }
+
+  async function sendApproval(taskId, stepId, decision) {
+    try {
+      await fetch(`${API}/tasks/${taskId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId, step_id: stepId, decision }),
+      });
+      document.getElementById('approval-panel').innerHTML = `<div style="color:var(--green);font-size:0.85rem;margin-top:8px">✓ Response sent: ${decision}</div>`;
+      log(`Approval ${decision} sent for step ${stepId}`);
+    } catch (e) {
+      log(`Error sending approval: ${e.message}`, true);
+    }
+  }
+
+  // ── History ───────────────────────────────────────────────────────────────
+
+  function addToHistory(taskId, task) {
+    taskHistory.unshift({ taskId, task, status: 'running', ts: new Date() });
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('history-list');
+    if (!taskHistory.length) { list.innerHTML = '<div style="color:var(--muted);font-size:0.85rem">No tasks yet</div>'; return; }
+    list.innerHTML = taskHistory.map(t => `
+      <div class="history-item ${t.taskId === currentTaskId ? 'active' : ''}" data-task-id="${t.taskId}" onclick="loadTask('${t.taskId}')">
+        <div class="history-task">${escHtml(t.task.substring(0,80))}</div>
+        <div class="history-meta">
+          <span class="badge badge-${t.status}">${t.status}</span>
+          <span>${t.ts.toLocaleTimeString()}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadTask(taskId) {
+    currentTaskId = taskId;
+    startPolling(taskId);
+    document.getElementById('status-card').style.display = 'block';
+    renderHistory();
+  }
+
+  // ── Log ───────────────────────────────────────────────────────────────────
+
+  function log(msg, isError = false) {
+    const logEl = document.getElementById('live-log');
+    const line = document.createElement('div');
+    line.className = isError ? 'log-error' : 'log-line';
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
